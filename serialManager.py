@@ -10,7 +10,7 @@ from random import randint
 
 DEV_VIRTUAL = True
 DEV_VIRT_PORT = "COM0"
-DEV_VIRT_NAME = DEV_VIRT_PORT+": Virtual Stream"
+DEV_VIRT_NAME = DEV_VIRT_PORT+": Virtual Stream (test+dev)"
 
 class VirtualSerial():
     def __init__(self) -> None:
