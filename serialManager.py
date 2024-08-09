@@ -8,9 +8,7 @@ import numpy as np
 from random import randint
 
 
-DEV_VIRTUAL = True
-DEV_VIRT_PORT = "COM0"
-DEV_VIRT_NAME = DEV_VIRT_PORT+": Virtual Stream (test+dev)"
+from settings import DEV_VIRTUAL, DEV_VIRT_PORT, DEV_VIRT_NAME
 
 class VirtualSerial():
     def __init__(self) -> None:
@@ -19,6 +17,10 @@ class VirtualSerial():
 
         self.s1 = 0
         self.s2 = 0
+        self.s3 = 0
+        self.s4 = 0
+        self.s5 = 0
+        self.s6 = 0
 
     def open(self):
         logging.debug("VIRTUAL open")
@@ -38,11 +40,15 @@ class VirtualSerial():
         self.s1 += 1
         if(self.s1 > 255):
             self.s1 = 0
-        self.s2 = randint(-50, 50)
+        self.s2 = randint(-50, -40)
+        self.s3 = randint(-30, -20)
+        self.s4 = randint(0, 20)
+        self.s5 = randint(30, 40)
+        self.s6 = randint(50, 100)
 
         buf = bytearray()
         for i in range(n):
-            s = "{}, {}\r\n".format(self.s1, self.s2)
+            s = "{}, {},{},{} , {} , {}\r\n".format(self.s1, self.s2, self.s3, self.s4, self.s5, self.s6)
             buf.extend(s.encode("utf-8"))
 
         self.in_waiting = 1
@@ -60,6 +66,7 @@ class SerialProc():
 
         self.thread_stop = threading.Event()
         self.threads = []
+        self.running = False
         
     @staticmethod
     def list_port():
@@ -73,6 +80,10 @@ class SerialProc():
         return info
 
     def open(self, port, baudrate=115200, timeout=1):
+        if(self.running):
+            # TBC: or close first then open
+            return
+
         if(DEV_VIRTUAL and port==DEV_VIRT_PORT):
             self.ser = VirtualSerial()
             return
@@ -83,7 +94,7 @@ class SerialProc():
             logging.error("Can not open Com port")
     
     def start(self):
-        if(self.ser):
+        if(self.ser and not self.running):
             self.ser.flushInput()
             self.ser.flushOutput()
             self.thread_stop.clear()
@@ -93,6 +104,7 @@ class SerialProc():
             self.threads.append(thread_cmder)
             thread_reader.start()
             thread_cmder.start()
+            self.running = True
 
     def reader(self):
         """ to run in thread - listen serial and add to in queue """
@@ -139,3 +151,4 @@ class SerialProc():
                 t.join()
             self.ser.close()
             self.ser = None
+            self.running = False
