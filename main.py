@@ -77,8 +77,9 @@ class MYAPP():
         while not self.data_in_queue.empty():
             new_data = True
             row = self.data_in_queue.get()
-
             row_split = row.decode("utf-8").splitlines()[0].split(',') # remove trailing /r/n, remove heading space, split by coma
+            if(len(row_split)==0):
+                break
             
             i = 0
             for s in row_split:

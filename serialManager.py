@@ -4,7 +4,52 @@ import threading
 
 import serial.tools.list_ports
 import time
+import numpy as np
+from random import randint
 
+
+DEV_VIRTUAL = True
+DEV_VIRT_PORT = "COM0"
+DEV_VIRT_NAME = DEV_VIRT_PORT+": Virtual Stream"
+
+class VirtualSerial():
+    def __init__(self) -> None:
+        logging.debug("VIRTUAL in use")
+        self.in_waiting = 1
+
+        self.s1 = 0
+        self.s2 = 0
+
+    def open(self):
+        logging.debug("VIRTUAL open")
+        self.t_start_ms = round(time.time()*1000)
+
+    def close(self):
+        logging.debug("VIRTUAL close")
+
+    def flushInput(self):
+        pass
+
+    def flushOutput(self):
+        pass
+
+    def read(self, n):
+        time.sleep(0.01) # get flooded otherwise
+        self.s1 += 1
+        if(self.s1 > 255):
+            self.s1 = 0
+        self.s2 = randint(-50, 50)
+
+        buf = bytearray()
+        for i in range(n):
+            s = "{}, {}\r\n".format(self.s1, self.s2)
+            buf.extend(s.encode("utf-8"))
+
+        self.in_waiting = 1
+        return buf
+
+    def write(self, buff):
+        logging.debug("VIRTUAL: {}".format(buff))
 
 class SerialProc():
     def __init__(self, data_in_queue, data_out_queue) -> None:
@@ -22,9 +67,16 @@ class SerialProc():
         info = []
         for port, desc, hwid in sorted(ports):
             info.append("{}: {}".format(port, desc))
+
+        if(DEV_VIRTUAL):
+            info.append(DEV_VIRT_NAME)
         return info
 
     def open(self, port, baudrate=115200, timeout=1):
+        if(DEV_VIRTUAL and port==DEV_VIRT_PORT):
+            self.ser = VirtualSerial()
+            return
+
         try:
             self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
         except serial.serialutil.SerialException:
@@ -56,11 +108,11 @@ class SerialProc():
             buff = bytearray()
             while not self.data_out_queue.empty():
                 buff.extend(self.data_out_queue.get())
-            self.ser.write(buff)
+                self.ser.write(buff)
 
             time.sleep(0.05) # no need to poll too fast 
 
-    
+
     def readline(self):
         """ optimized readline"""
         i = self.readline_buf.find(b"\n")
