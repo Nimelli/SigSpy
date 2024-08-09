@@ -36,6 +36,8 @@ class MYAPP():
         for i in range(MAX_LINE):
             self.plot_data_y.append([])
 
+        self.log_val = ""
+
     def on_close(self):
         logging.info("Exiting")
         self.serProc.close()
@@ -54,8 +56,11 @@ class MYAPP():
         self.serProc.close()
 
     def on_btn_send_cmd(self, sender, app_data):
-        print('cmd')
-        self.data_out_queue.put(b'test cmd\r\n')
+        cmd = bytearray()
+        cmd_txt = self.dpg.get_value("send_cmd_txt")
+        cmd.extend(cmd_txt.encode("utf-8"))
+        cmd.extend(b"\r\n")
+        self.data_out_queue.put(cmd)
 
     def on_btn_clear_plot(self, sender, app_data):
         self.plot_data_x = []
@@ -65,11 +70,16 @@ class MYAPP():
 
         self.dpg.fit_axis_data("x_axis")
         self.dpg.fit_axis_data("y_axis")
+
+    def on_btn_clear_log(self, sender, app_data):
+        self.log_val = ""
+        self.dpg.set_value("serial_log", self.log_val)
     
     def mainloop(self):
         
         # serial get data
         new_data = False
+        raw_line = []
         data_in = []
         for i in range(MAX_LINE):
              data_in.append([])
@@ -77,6 +87,7 @@ class MYAPP():
         while not self.data_in_queue.empty():
             new_data = True
             row = self.data_in_queue.get()
+            raw_line.append(row)
             row_split = row.decode("utf-8").splitlines()[0].split(',') # remove trailing /r/n, remove heading space, split by coma
             if(len(row_split)==0):
                 break
@@ -95,7 +106,12 @@ class MYAPP():
 
         # process data
         if(new_data):
+            # append to log
+            for line in raw_line:
+                self.log_val = line.decode("utf-8") + self.log_val
+            self.dpg.set_value("serial_log", self.log_val)
 
+            # plot
             i=0
             for s in data_in:
                 self.plot_data_y[i].extend(s)
@@ -123,20 +139,21 @@ dpg.create_context()
 myApp = MYAPP(dpg)
 dpg.set_exit_callback(myApp.on_close)
 
+with dpg.window(label="Serial Port", tag="Primary Window"):
+    with dpg.child_window(autosize_x=True, height=100):
+        with dpg.group(horizontal=True):
+            all_ports = SerialProc.list_port()
+            logging.debug(all_ports)
+            dpg.add_combo(all_ports, label="COM Port", tag="com_port_txt")
+            dpg.add_button(label="Open Port", callback=myApp.on_btn_open_port, tag="open_port")
+            dpg.add_button(label="Close Port", callback=myApp.on_btn_close_port, tag="close_port")
 
-
-with dpg.window(label="Serial Port", tag="win"):
-    all_ports = SerialProc.list_port()
-    logging.debug(all_ports)
-    dpg.add_combo(all_ports, label="COM Port", tag="com_port_txt")
-    #dpg.add_input_text(label="COM Port", tag="com_port_txt")
-    dpg.add_button(label="Open Port", callback=myApp.on_btn_open_port, tag="open_port")
-    dpg.add_button(label="Close Port", callback=myApp.on_btn_close_port, tag="close_port")
-
-    dpg.add_button(label="Send cmd", callback=myApp.on_btn_send_cmd, tag="send_cmd")
+        with dpg.group(horizontal=True):
+            dpg.add_input_text(tag="send_cmd_txt")
+            dpg.add_button(label="Send cmd", callback=myApp.on_btn_send_cmd, tag="send_cmd")
     # create plot
 
-with dpg.window(label="Plot", tag="plotwin"):
+with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
     # create plot
     with dpg.plot(label="Line Series", height=400, width=800):
         # optionally create legend
@@ -155,22 +172,26 @@ with dpg.window(label="Plot", tag="plotwin"):
 
     dpg.add_button(label="Clear", callback=myApp.on_btn_clear_plot, tag="clear_plot")
 
-dpg.set_item_pos("plotwin", [200, 0])
+with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=200):
+    dpg.add_text("(reverse) last received at the top", wrap=0)
+    dpg.add_button(label="Clear", callback=myApp.on_btn_clear_log, tag="clear_log")
+    with dpg.child_window():
+        dpg.add_text(wrap=0, tag="serial_log")
+
 
 # debug usefull
 #dpg.show_documentation()
 #dpg.show_style_editor()
-dpg.show_debug()
+#dpg.show_debug()
 #dpg.show_about()
 dpg.show_metrics()
 #dpg.show_font_manager()
-dpg.show_item_registry()
+#dpg.show_item_registry()
 
-
-
-dpg.create_viewport(title='Custom Title', width=1200, height=800)
+dpg.create_viewport(title='SigSpy', width=1200, height=800)
 dpg.setup_dearpygui()
 dpg.show_viewport()
+dpg.set_primary_window("Primary Window", True)
 
 # below replaces, start_dearpygui()
 
