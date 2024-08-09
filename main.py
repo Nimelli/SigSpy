@@ -12,6 +12,24 @@ dpg.create_context()
 myApp = MYAPP(dpg)
 dpg.set_exit_callback(myApp.on_close)
 
+def show_plot_cursor():
+    dpg.configure_item("vc1", show=True)
+    dpg.configure_item("hc1", show=True)
+    dpg.configure_item("vc2", show=True)
+    dpg.configure_item("hc2", show=True)
+
+def hide_plot_cursor():
+    dpg.configure_item("vc1", show=False)
+    dpg.configure_item("hc1", show=False)
+    dpg.configure_item("vc2", show=False)
+    dpg.configure_item("hc2", show=False)
+
+def print_cursor_dx():
+    dpg.set_value("delta_x", "dX: {:.2f}".format(dpg.get_value("vc2") - dpg.get_value("vc1")))
+
+def print_cursor_dy():
+    dpg.set_value("delta_y", "dY: {:.2f}".format(dpg.get_value("hc2") - dpg.get_value("hc1")))
+
 with dpg.window(label="Serial Port", tag="Primary Window"):
     with dpg.child_window(autosize_x=True, height=100):
         with dpg.group(horizontal=True):
@@ -36,6 +54,11 @@ with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
         dpg.add_plot_axis(dpg.mvXAxis, label="x", tag="x_axis")
         dpg.add_plot_axis(dpg.mvYAxis, label="y", tag="y_axis")
 
+        dpg.add_drag_line(tag="vc1", label="vc1", color=[255, 0, 0, 255], show=False, callback=print_cursor_dx)
+        dpg.add_drag_line(tag="vc2", label="vc2", color=[255, 0, 0, 255], show=False, callback=print_cursor_dx)
+        dpg.add_drag_line(tag="hc1", label="hc1", color=[255, 255, 0, 255], vertical=False, callback=print_cursor_dy)
+        dpg.add_drag_line(tag="hc2", label="hc2", color=[255, 255, 0, 255], vertical=False, callback=print_cursor_dy)
+
         dpg.set_axis_limits_auto("x_axis")
         dpg.set_axis_limits_auto("y_axis")
 
@@ -43,7 +66,12 @@ with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
         for i in range(MAX_LINE):
             dpg.add_line_series([], [], parent="y_axis", tag="serial_plot_series_{}".format(i))
 
-    dpg.add_button(label="Clear", callback=myApp.on_btn_clear_plot, tag="clear_plot")
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="Clear", callback=myApp.on_btn_clear_plot, tag="clear_plot")
+        dpg.add_button(label="Show cursor", callback=show_plot_cursor)
+        dpg.add_button(label="Hide cursor", callback=hide_plot_cursor)
+        dpg.add_text(tag="delta_x", wrap=0)
+        dpg.add_text(tag="delta_y", wrap=0)
 
 with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=200):
     dpg.add_text("(reverse) last received at the top", wrap=0)
