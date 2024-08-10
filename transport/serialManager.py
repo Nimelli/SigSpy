@@ -4,7 +4,6 @@ import threading
 
 import serial.tools.list_ports
 import time
-import numpy as np
 from random import randint
 
 

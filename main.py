@@ -1,6 +1,7 @@
 import dearpygui.dearpygui as dpg
+
 from app import MYAPP
-from serialManager import SerialProc
+from transport.serialManager import SerialProc # for com port list
 from settings import MAX_LINE
 
 import logging

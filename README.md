@@ -1,12 +1,15 @@
 # SigSpy
 Realtime signal plotting
 
+Inspired by https://github.com/hyOzd/serialplot (which is great), but I wanted something pythonic that I could easily customize to my needs.
+
 ## Dependencies
 Developed with Python 3.11
 
 Package
 - pyserial
 - dearpygui (1.11.1)
+- numpy
 
 ## Support
 
