@@ -36,17 +36,19 @@ with dpg.window(label="Serial Port", tag="Primary Window"):
         with dpg.group(horizontal=True):
             all_ports = SerialProc.list_port()
             logging.debug(all_ports)
-            dpg.add_combo(all_ports, label="COM Port", tag="com_port_txt")
+            dpg.add_combo(all_ports, label="COM Port", tag="com_port_txt", width=200)
             dpg.add_button(label="Open Port", callback=myApp.on_btn_open_port)
             dpg.add_button(label="Close Port", callback=myApp.on_btn_close)
 
         with dpg.group(horizontal=True):
-            dpg.add_input_text(tag="send_cmd_txt")
+            dpg.add_input_text(tag="send_cmd_txt", width=200)
             dpg.add_button(label="Send cmd", callback=myApp.on_btn_send_cmd)
 
 
     with dpg.child_window(autosize_x=True, height=100):
         with dpg.group(horizontal=True):
+            dpg.add_input_text(default_value="localhost", label="TCP server", tag="tcp_server", width=100)
+            dpg.add_input_text(default_value="65432", label="port", tag="tcp_port", width=100)
             dpg.add_button(label="Open TCP", callback=myApp.on_btn_open_tcp)
             dpg.add_button(label="Close TCP", callback=myApp.on_btn_close)
 
@@ -88,20 +90,22 @@ with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
                 dpg.add_text(tag="stat_sig_std_{}".format(i))
 
 
-with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=200):
-    dpg.add_button(label="Clear", callback=myApp.on_btn_clear_log, tag="clear_log")
+with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=350):
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="Clear", callback=myApp.on_btn_clear_log, tag="clear_log")
+        dpg.add_checkbox(label="Enable print log (can reduce perf)", callback=myApp.on_log_toggle)
     with dpg.child_window():
         dpg.add_text(wrap=0, tag="serial_log")
 
 
 # debug usefull
-#dpg.show_documentation()
-#dpg.show_style_editor()
-#dpg.show_debug()
-#dpg.show_about()
+# dpg.show_documentation()
+# dpg.show_style_editor()
+# dpg.show_debug()
+# dpg.show_about()
 dpg.show_metrics()
-#dpg.show_font_manager()
-dpg.show_item_registry()
+# dpg.show_font_manager()
+# dpg.show_item_registry()
 
 dpg.create_viewport(title='SigSpy', width=1200, height=800)
 dpg.setup_dearpygui()

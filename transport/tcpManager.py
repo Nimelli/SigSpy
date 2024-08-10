@@ -23,6 +23,8 @@ class TcpProc():
 
         opened = False
 
+        logging.debug((host, port))
+
         try:
             self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.conn.settimeout(2)
@@ -64,7 +66,8 @@ class TcpProc():
 
 
     def readline(self):
-        """ optimized readline"""
+        """ optimized readline
+        TODO: might not be needed for the TCP library, maybe redondant """
         i = self.readline_buf.find(b"\n")
         if i >= 0:
             r = self.readline_buf[:i+1]

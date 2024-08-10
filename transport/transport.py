@@ -26,6 +26,9 @@ class Transport():
         self.serProc = SerialProc(self.data_in_queue, self.data_out_queue)
         self.tcpProc = TcpProc(self.data_in_queue, self.data_out_queue)
 
+    def print_debug_info(self):
+        logging.debug("IN queue approximate size: {}, OUT queue approximate size: {}".format(self.data_in_queue.qsize(), self.data_out_queue.qsize()))
+
     def select(self, name):
         logging.debug("transport select")
         if(self.is_open):
@@ -34,14 +37,21 @@ class Transport():
 
         self.t_selection = name
     
-    def open(self, port):
+    def open(self, settings):
         self.close() # just in case
         logging.debug("transport open")
 
         if(self.t_selection == T_NAME_SERIAL):
-            self.is_open = self.serProc.open(port) # open
+            if(len(settings) != 1):
+                logging.error("open wrong parameters: {}, len: {}".format(settings, len(settings)))
+                return
+            self.is_open = self.serProc.open(settings[0]) # open
         elif(self.t_selection == T_NAME_TCP):
-            self.is_open = self.tcpProc.open() # default localhaost
+            if(len(settings) != 2):
+                logging.error("open wrong parameters: {}, len: {}".format(settings, len(settings)))
+                return
+            #TODO: more check on parameters
+            self.is_open = self.tcpProc.open(host=str(settings[0]), port=int(settings[1])) # default localhaost
 
     def start(self):
         if(self.is_open):
@@ -71,10 +81,16 @@ class Transport():
         for i in range(MAX_LINE):
              signals_data.append([])
 
+        get_cnt = 0
         while not self.data_in_queue.empty():
             new_data_flag = True
             line = self.data_in_queue.get()
+            get_cnt += 1
             raw_data.append(line)
+
+            if(get_cnt > 100):
+                logging.warning("consummer app cannot process as fast as data comes in")
+                break # loosing data
 
             # expected bytes are in format: b"s1, s2,.., sn \r\n"
             line_split = line.decode("utf-8").splitlines()[0].split(',') # remove \r\n, split by coma

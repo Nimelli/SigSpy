@@ -10,7 +10,7 @@ FPS = 60
 
 def ts_ms():
     return round(time.time() * 1000)
-    
+
 class MYAPP():
     def __init__(self, dpg) -> None:
         self.dpg = dpg
@@ -27,6 +27,7 @@ class MYAPP():
         for i in range(MAX_LINE):
             self.plot_data_y.append([])
 
+        self.log_enabled = False
         self.log_val = ""
 
     def on_close(self):
@@ -54,14 +55,17 @@ class MYAPP():
         com_port = self.dpg.get_value("com_port_txt").split(':')[0]
         self.transport.close()
         self.transport.select(T_NAME_SERIAL)
-        self.transport.open(com_port)
+        self.transport.open((com_port,))
         self.transport.start()
 
     def on_btn_open_tcp(self, sender, app_data):
         self.clear_all()
         self.transport.close()
+        serv = self.dpg.get_value("tcp_server")
+        port = self.dpg.get_value("tcp_port")
+
         self.transport.select(T_NAME_TCP)
-        self.transport.open("dummy port to be replaced")
+        self.transport.open((serv, port))
         self.transport.start()
 
     def on_btn_close(self, sender, app_data):
@@ -84,6 +88,15 @@ class MYAPP():
         self.dpg.fit_axis_data("x_axis")
         self.dpg.fit_axis_data("y_axis")
 
+    def on_log_toggle(self):
+        self.log_enabled = not self.log_enabled
+        if(self.log_enabled):
+            pass
+        else:
+            # clear
+            self.log_val = ""
+        self.dpg.set_value("serial_log", self.log_val)
+
     def on_btn_clear_log(self, sender, app_data):
         self.log_val = ""
         self.dpg.set_value("serial_log", self.log_val)
@@ -91,9 +104,10 @@ class MYAPP():
     def update_UI_input_data(self, raw_data, signals_data):
         """ update UI element with the received data """
         # append to log
-        for line in raw_data:
-            self.log_val = self.log_val + line.decode("utf-8")
-        self.dpg.set_value("serial_log", self.log_val)
+        if(self.log_enabled):
+            for line in raw_data:
+                self.log_val = self.log_val + line.decode("utf-8")
+            self.dpg.set_value("serial_log", self.log_val)
 
         # add new data in plot data
         for i, sig in enumerate(signals_data):
@@ -125,7 +139,7 @@ class MYAPP():
                 s_max = np.max(npsig)
                 s_avg = np.mean(npsig)
                 s_std = np.std(npsig)
-                logging.debug("{}, {}, {}, {}".format(s_min, s_max, s_avg, s_std))
+                #logging.debug("{}, {}, {}, {}".format(s_min, s_max, s_avg, s_std))
 
                 # update UI
                 self.dpg.configure_item('stat_sig_{}'.format(i), show=True)
@@ -161,5 +175,8 @@ class MYAPP():
             if(self.data_processing_run): # run once every 30 FPS
                 self.data_processing_run = False
                 self.data_processing()
+
+                # some debug info
+                self.transport.print_debug_info()
         
         self.loop_cnt_update()
