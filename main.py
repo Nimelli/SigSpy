@@ -73,8 +73,16 @@ with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
         dpg.add_text(tag="delta_x", wrap=0)
         dpg.add_text(tag="delta_y", wrap=0)
 
+    with dpg.tree_node(label="Signal stat"):
+        for i in range(MAX_LINE):
+            with dpg.tree_node(label="Sig {}".format(i), tag="stat_sig_{}".format(i), show=False):
+                dpg.add_text(tag="stat_sig_min_{}".format(i))
+                dpg.add_text(tag="stat_sig_max_{}".format(i))
+                dpg.add_text(tag="stat_sig_avg_{}".format(i))
+                dpg.add_text(tag="stat_sig_std_{}".format(i))
+
+
 with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=200):
-    dpg.add_text("(reverse) last received at the top", wrap=0)
     dpg.add_button(label="Clear", callback=myApp.on_btn_clear_log, tag="clear_log")
     with dpg.child_window():
         dpg.add_text(wrap=0, tag="serial_log")
@@ -87,7 +95,7 @@ with dpg.window(label="Log", tag="log", pos=(0, 200), height=200, width=200):
 #dpg.show_about()
 dpg.show_metrics()
 #dpg.show_font_manager()
-#dpg.show_item_registry()
+dpg.show_item_registry()
 
 dpg.create_viewport(title='SigSpy', width=1200, height=800)
 dpg.setup_dearpygui()
