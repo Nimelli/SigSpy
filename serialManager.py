@@ -11,6 +11,7 @@ from random import randint
 from settings import DEV_VIRTUAL, DEV_VIRT_PORT, DEV_VIRT_NAME
 
 class VirtualSerial():
+    """ simulate a fake serial comm """
     def __init__(self) -> None:
         logging.debug("VIRTUAL in use")
         self.in_waiting = 1
@@ -25,6 +26,7 @@ class VirtualSerial():
     def open(self):
         logging.debug("VIRTUAL open")
         self.t_start_ms = round(time.time()*1000)
+        return True
 
     def close(self):
         logging.debug("VIRTUAL close")
@@ -48,7 +50,7 @@ class VirtualSerial():
 
         buf = bytearray()
         for i in range(n):
-            s = "{}, {},{},{} , {} , {}\r\n".format(self.s1, self.s2, self.s3, self.s4, self.s5, self.s6)
+            s = "{}, {},{},{} , {} , {}\r\n".format(self.s1, self.s2, self.s3, self.s4, self.s5, self.s6) # purposely add spaces there and there to see if it is correctly processed
             buf.extend(s.encode("utf-8"))
 
         self.in_waiting = 1
@@ -86,12 +88,17 @@ class SerialProc():
 
         if(DEV_VIRTUAL and port==DEV_VIRT_PORT):
             self.ser = VirtualSerial()
-            return
+            return True
+
+        opened = False
 
         try:
             self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
+            opened = True
         except serial.serialutil.SerialException:
             logging.error("Can not open Com port")
+
+        return opened
     
     def start(self):
         if(self.ser and not self.running):

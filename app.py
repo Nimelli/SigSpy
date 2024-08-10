@@ -1,5 +1,6 @@
 from serialManager import SerialProc
-from settings import MAX_LINE
+from tcpManager import TcpProc
+from settings import MAX_LINE, T_NAME_SERIAL, T_NAME_TCP
 from queue import Queue
 import time
 import logging
@@ -18,69 +19,57 @@ def check_int(s):
     
     if s[0] in ('-', '+'):
         return s[1:].isdigit()
-    return s.isdigit()    
+    return s.isdigit()
 
-class MYAPP():
-    def __init__(self, dpg) -> None:
-        self.dpg = dpg
 
+class Transport():
+    def __init__(self) -> None:
         self.data_in_queue = Queue() # host in
         self.data_out_queue = Queue() # host out
+
+        self.t_selection = ""
+        self.is_open = False
         self.serProc = SerialProc(self.data_in_queue, self.data_out_queue)
-        self.serProc.start()
+        self.tcpProc = TcpProc(self.data_in_queue, self.data_out_queue)
 
-        self.mainloop_cnt = 0
-        self.data_processing_cnt = 0
-        self.data_processing_run = True
+    def select(self, name):
+        logging.debug("transport select")
+        if(self.is_open):
+            # can't change transport if is open already
+            return
 
-        self.t_start_first = 0
-        self.plot_data_x = []
-        self.plot_data_y = []
-        for i in range(MAX_LINE):
-            self.plot_data_y.append([])
-
-        self.log_val = ""
-
-    def on_close(self):
-        logging.info("Exiting")
-        self.serProc.close()
-
-    def btn(self, sender, app_data):
-        logging.debug(f"sender is: {sender}")
-        logging.debug(f"app_data is: {app_data}")
+        self.t_selection = name
     
-        
-    def on_btn_open_port(self, sender, app_data):
-        com_port = self.dpg.get_value("com_port_txt")
-        self.serProc.open(com_port.split(':')[0]) # open
-        self.serProc.start()
+    def open(self, port):
+        self.close() # just in case
+        logging.debug("transport open")
 
-    def on_btn_close_port(self, sender, app_data):
+        if(self.t_selection == T_NAME_SERIAL):
+            self.is_open = self.serProc.open(port) # open
+        elif(self.t_selection == T_NAME_TCP):
+            self.is_open = self.tcpProc.open() # default localhaost
+
+    def start(self):
+        if(self.is_open):
+            logging.debug("transport start")
+            if(self.t_selection == T_NAME_SERIAL):
+                self.serProc.start()
+            elif(self.t_selection == T_NAME_TCP):
+                self.tcpProc.start()
+
+    def close(self):
+        logging.debug("transport close")
         self.serProc.close()
+        self.tcpProc.close()
+        self.is_open = False
 
-    def on_btn_send_cmd(self, sender, app_data):
-        cmd = bytearray()
-        cmd_txt = self.dpg.get_value("send_cmd_txt")
-        cmd.extend(cmd_txt.encode("utf-8"))
-        cmd.extend(b"\r\n")
-        self.data_out_queue.put(cmd)
-
-    def on_btn_clear_plot(self, sender, app_data):
-        self.plot_data_x = []
-        for i in range(MAX_LINE):
-            self.dpg.set_value('serial_plot_series_{}'.format(i), [[], []])
-            self.plot_data_y[i] = []
-            self.dpg.configure_item('stat_sig_{}'.format(i), show=False)
-
-        self.dpg.fit_axis_data("x_axis")
-        self.dpg.fit_axis_data("y_axis")
-
-    def on_btn_clear_log(self, sender, app_data):
-        self.log_val = ""
-        self.dpg.set_value("serial_log", self.log_val)
+    def write(self, cmd_b):
+        self.data_out_queue.put(cmd_b)        
 
     def get_data_from_input_buf(self):
-        """ read data from input queue, decode and separate (coma separated) the different signals """
+        """ read data from input queue, decode and separate (coma separated) the different signals
+            Assume data coming line by line and with specific format
+            This function needs to change to support other data format """
         new_data_flag = False
         raw_data = []
         signals_data =[]
@@ -121,6 +110,84 @@ class MYAPP():
             self.data_in_queue.task_done() # TODO: is it needed or not ?
         
         return (new_data_flag, raw_data, signals_data)
+
+
+class MYAPP():
+    def __init__(self, dpg) -> None:
+        self.dpg = dpg
+
+        self.transport = Transport()
+
+        self.mainloop_cnt = 0
+        self.data_processing_cnt = 0
+        self.data_processing_run = True
+
+        self.t_start_first = 0
+        self.plot_data_x = []
+        self.plot_data_y = []
+        for i in range(MAX_LINE):
+            self.plot_data_y.append([])
+
+        self.log_val = ""
+
+    def on_close(self):
+        logging.info("Exiting")
+        self.transport.close()
+
+    def btn(self, sender, app_data):
+        logging.debug(f"sender is: {sender}")
+        logging.debug(f"app_data is: {app_data}")
+
+    def clear_all(self):
+        # clear signals
+        self.plot_data_x = []
+        for i in range(MAX_LINE):
+            self.dpg.set_value('serial_plot_series_{}'.format(i), [[], []])
+            self.plot_data_y[i] = []
+            self.dpg.configure_item('stat_sig_{}'.format(i), show=False)
+
+        # clear log
+        self.log_val = ""
+        self.dpg.set_value("serial_log", self.log_val)
+        
+    def on_btn_open_port(self, sender, app_data):
+        self.clear_all()
+        com_port = self.dpg.get_value("com_port_txt").split(':')[0]
+        self.transport.close()
+        self.transport.select(T_NAME_SERIAL)
+        self.transport.open(com_port)
+        self.transport.start()
+
+    def on_btn_open_tcp(self, sender, app_data):
+        self.clear_all()
+        self.transport.close()
+        self.transport.select(T_NAME_TCP)
+        self.transport.open("dummy port to be replaced")
+        self.transport.start()
+
+    def on_btn_close(self, sender, app_data):
+        self.transport.close()
+
+    def on_btn_send_cmd(self, sender, app_data):
+        cmd = bytearray()
+        cmd_txt = self.dpg.get_value("send_cmd_txt")
+        cmd.extend(cmd_txt.encode("utf-8"))
+        cmd.extend(b"\r\n")
+        self.transport.write(cmd)
+
+    def on_btn_clear_plot(self, sender, app_data):
+        self.plot_data_x = []
+        for i in range(MAX_LINE):
+            self.dpg.set_value('serial_plot_series_{}'.format(i), [[], []])
+            self.plot_data_y[i] = []
+            self.dpg.configure_item('stat_sig_{}'.format(i), show=False)
+
+        self.dpg.fit_axis_data("x_axis")
+        self.dpg.fit_axis_data("y_axis")
+
+    def on_btn_clear_log(self, sender, app_data):
+        self.log_val = ""
+        self.dpg.set_value("serial_log", self.log_val)
 
     def update_UI_input_data(self, raw_data, signals_data):
         """ update UI element with the received data """
@@ -174,7 +241,7 @@ class MYAPP():
         self.mainloop_cnt +=1
         self.data_processing_cnt +=1
         
-        if(self.data_processing_run == False and self.data_processing_cnt >= FPS/PROC_RATE): # run a second time after 30 fps
+        if(self.data_processing_cnt >= int(FPS/PROC_RATE)): # run a second time after 30 fps
             self.data_processing_run = True
             self.data_processing_cnt = 0
 
@@ -187,13 +254,13 @@ class MYAPP():
     
     def mainloop(self):
         """ dpk runs at 60FPS, this loop is called as fast """
-        (new_data_flag, raw_data, signals_data) = self.get_data_from_input_buf()  
+        (new_data_flag, raw_data, signals_data) = self.transport.get_data_from_input_buf()  
         if(new_data_flag):
             self.update_UI_input_data(raw_data, signals_data)
 
-        if(self.data_processing_run): # run once every 30 FPS
-            self.data_processing_run = False
-            if(new_data_flag):
+        if(new_data_flag):
+            if(self.data_processing_run): # run once every 30 FPS
+                self.data_processing_run = False
                 self.data_processing()
         
         self.loop_cnt_update()

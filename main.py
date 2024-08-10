@@ -36,13 +36,18 @@ with dpg.window(label="Serial Port", tag="Primary Window"):
             all_ports = SerialProc.list_port()
             logging.debug(all_ports)
             dpg.add_combo(all_ports, label="COM Port", tag="com_port_txt")
-            dpg.add_button(label="Open Port", callback=myApp.on_btn_open_port, tag="open_port")
-            dpg.add_button(label="Close Port", callback=myApp.on_btn_close_port, tag="close_port")
+            dpg.add_button(label="Open Port", callback=myApp.on_btn_open_port)
+            dpg.add_button(label="Close Port", callback=myApp.on_btn_close)
 
         with dpg.group(horizontal=True):
             dpg.add_input_text(tag="send_cmd_txt")
-            dpg.add_button(label="Send cmd", callback=myApp.on_btn_send_cmd, tag="send_cmd")
-    # create plot
+            dpg.add_button(label="Send cmd", callback=myApp.on_btn_send_cmd)
+
+
+    with dpg.child_window(autosize_x=True, height=100):
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Open TCP", callback=myApp.on_btn_open_tcp)
+            dpg.add_button(label="Close TCP", callback=myApp.on_btn_close)
 
 with dpg.window(label="Plot", tag="plotwin", pos=(200, 200)):
     # create plot
