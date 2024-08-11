@@ -122,8 +122,6 @@ class MYAPP():
             self.plot_data_y[i].extend(sig)
 
     def data_processing(self):
-        logging.debug("data processing")
-
         for i, sig in enumerate(self.plot_data_y):
             if len(sig) > 0:
                 npsig = np.array(sig)
@@ -194,7 +192,7 @@ class MYAPP():
             if(self.data_processing_run): # run once every 30 FPS
                 self.data_processing_run = False
                 
-                # self.data_processing()
+                self.data_processing()
                 # some debug info
                 self.transport.print_debug_info()
                 

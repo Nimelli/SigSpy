@@ -37,7 +37,7 @@ class VirtualSerial():
         pass
 
     def read(self, n):
-        time.sleep(0.01) # get flooded otherwise
+        time.sleep(0.001) # get flooded otherwise
         self.s1 += 1
         if(self.s1 > 255):
             self.s1 = 0

@@ -62,7 +62,7 @@ class TcpProc():
                 chunk_cnt = 0
 
     def commander(self):
-        """ to run in thread - check out queue and send to serial """
+        """ to run in thread - check out queue and send to server """
         logging.debug("serial commander start")
         while not self.thread_stop.is_set():
             buff = bytearray()
