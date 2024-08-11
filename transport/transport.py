@@ -74,6 +74,21 @@ class Transport():
         """ read data from input queue, decode and separate (coma separated) the different signals
             Assume data coming line by line and with specific format
             This function needs to change to support other data format """
+
+        def __inner_add_byte_to_signal(b, signal_idx):
+            if(signal_idx >= MAX_LINE):
+                logging.error("too many signals {}".format(signal_idx))
+                return
+
+            b_strip = b.strip() # remove leading, trailing spaces if any, also removes \r\n
+            b_dec = b_strip.decode("utf-8")
+
+            if(check_int(b_dec)): # signal must be int, for this implementation
+                signals_data[signal_idx].append(int(b_dec)) 
+            else:
+                logging.info("Not a digit: {}".format(b_strip))
+
+
         new_data_flag = False
         raw_data = []
         signals_data =[]
@@ -84,38 +99,36 @@ class Transport():
         get_cnt = 0
         while not self.data_in_queue.empty():
             new_data_flag = True
-            line = self.data_in_queue.get()
+            line_chunk = self.data_in_queue.get()
             get_cnt += 1
-            raw_data.append(line)
+            raw_data.append(line_chunk)
 
-            if(get_cnt > 100):
+            if(get_cnt > 1024): # TBC size, actually should monitor if this is continuously increasing
                 logging.warning("consummer app cannot process as fast as data comes in")
                 break # loosing data
 
-            # expected bytes are in format: b"s1, s2,.., sn \r\n"
-            line_split = line.decode("utf-8").splitlines()[0].split(',') # remove \r\n, split by coma
-            nb_sig = len(line_split)
-            if(nb_sig == 0):
-                break
-            if(nb_sig > MAX_LINE):
-                logging.warning("Too many signals: {}".format(nb_sig))
-                break
-            
-            i = 0
-            for sig in line_split: # iterate over the different signals
-                if(i >= MAX_LINE):
-                    # max signals reached
-                    break
+            signal_idx = 0
+            for b in line_chunk.split(b','):
+                j = b.find(b"\n")
+                if(j > 0): 
+                    # if chunk greater than 1, split can produce a b like bytearray(b'sn\r\ns0')
+                    # which contain last item and first item of next chunk
 
-                sigv = sig.strip() # remove leading, trailing spaces if any
+                    b_now = b[:j]
+                    b_next = b[j+1:]
 
-                if(check_int(sigv)): # signal must be int, for this implementation
-                    signals_data[i].append(int(sigv)) 
+                    __inner_add_byte_to_signal(b_now, signal_idx)
+                    # end of line
+                    signal_idx = 0 # reset
+
+                    if(len(b_next) > 0):
+                        __inner_add_byte_to_signal(b_next, signal_idx)
+                    
                 else:
-                    logging.info("Not a digit: {}".format(line_split))
-                    pass
-
-                i += 1
+                    __inner_add_byte_to_signal(b, signal_idx)
+                    
+                
+                signal_idx += 1
 
             self.data_in_queue.task_done() # TODO: is it needed or not ?
         

@@ -5,7 +5,8 @@ import time
 import logging
 import numpy as np
 
-PROC_RATE = 1 # per 60 FPS
+PROC_RATE = 2 # times per 60 FPS
+UI_RATE = 30 # times per 60 FPS
 FPS = 60
 
 def ts_ms():
@@ -20,6 +21,8 @@ class MYAPP():
         self.mainloop_cnt = 0
         self.data_processing_cnt = 0
         self.data_processing_run = True
+        self.ui_data_update_cnt = 0
+        self.ui_data_update_run = True
 
         self.t_start_first = 0
         self.plot_data_x = []
@@ -103,30 +106,20 @@ class MYAPP():
 
     def update_UI_input_data(self, raw_data, signals_data):
         """ update UI element with the received data """
-        # append to log
-        if(self.log_enabled):
-            for line in raw_data:
-                self.log_val = self.log_val + line.decode("utf-8")
-            self.dpg.set_value("serial_log", self.log_val)
-
-        # add new data in plot data
-        for i, sig in enumerate(signals_data):
-            self.plot_data_y[i].extend(sig)
-            
-
         if(len(self.plot_data_x) == 0):
             self.t_start_first = ts_ms()
 
         ts = ts_ms() - self.t_start_first
         self.plot_data_x.append(ts)
 
-        # update UI
-        for i in range(MAX_LINE):
-            if(len(self.plot_data_y[i]) > 0):
-                self.dpg.set_value('serial_plot_series_{}'.format(i), [self.plot_data_x, self.plot_data_y[i]])
+        # append to log
+        if(self.log_enabled):
+            for line in raw_data:
+                self.log_val = self.log_val + line.decode("utf-8")
 
-        self.dpg.fit_axis_data("x_axis")
-        self.dpg.fit_axis_data("y_axis")
+        # add new data in plot data
+        for i, sig in enumerate(signals_data):
+            self.plot_data_y[i].extend(sig)
 
     def data_processing(self):
         logging.debug("data processing")
@@ -150,20 +143,40 @@ class MYAPP():
 
     def loop_cnt_update(self):
         """ maintain loop counter and task rate """
-        #logging.debug("{}, {}".format(self.mainloop_cnt, self.data_processing_cnt))
+        # logging.debug("{}, {}, {}".format(self.mainloop_cnt, self.data_processing_cnt, self.ui_data_update_cnt))
         self.mainloop_cnt +=1
         self.data_processing_cnt +=1
+        self.ui_data_update_cnt +=1
         
         if(self.data_processing_cnt >= int(FPS/PROC_RATE)): # run a second time after 30 fps
             self.data_processing_run = True
             self.data_processing_cnt = 0
 
+
+        if(self.ui_data_update_cnt >= int(FPS/UI_RATE)): 
+            self.ui_data_update_run = True
+            self.ui_data_update_cnt = 0
+
         
         if(self.mainloop_cnt >= FPS):
             self.mainloop_cnt = 0
             self.data_processing_cnt = 0
+            self.ui_data_update_cnt = 0
             # reset loop run flags
             self.data_processing_run = True
+            self.ui_data_update_run = True
+
+    def refresh_UI_new_data(self):
+        if(self.log_enabled):
+            self.dpg.set_value("serial_log", self.log_val)
+
+        # update UI
+        for i in range(MAX_LINE):
+            if(len(self.plot_data_y[i]) > 0):
+                self.dpg.set_value('serial_plot_series_{}'.format(i), [self.plot_data_x, self.plot_data_y[i]])
+
+        self.dpg.fit_axis_data("x_axis")
+        self.dpg.fit_axis_data("y_axis")
     
     def mainloop(self):
         """ dpk runs at 60FPS, this loop is called as fast """
@@ -171,12 +184,19 @@ class MYAPP():
         if(new_data_flag):
             self.update_UI_input_data(raw_data, signals_data)
 
-        if(new_data_flag):
+
+
+            if(self.ui_data_update_run):
+                self.ui_data_update_run = False
+
+                self.refresh_UI_new_data()
+
             if(self.data_processing_run): # run once every 30 FPS
                 self.data_processing_run = False
-                self.data_processing()
-
+                
+                # self.data_processing()
                 # some debug info
                 self.transport.print_debug_info()
+                
         
         self.loop_cnt_update()

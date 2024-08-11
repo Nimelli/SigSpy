@@ -14,7 +14,8 @@ class TcpProc():
         self.thread_stop = threading.Event()
         self.threads = []
         self.running = False
-        
+
+        self.line_chunk_size = 1 # 1 for true realtime, but should be increased for better efficiency with high stream rate
 
     def open(self, host="127.0.0.1", port=65432):
         if(self.running):
@@ -49,9 +50,16 @@ class TcpProc():
     def reader(self):
         """ to run in thread - listen serial and add to in queue """
         logging.debug("tcp reader start")
+        chunk = bytearray()
+        chunk_cnt = 0
         while not self.thread_stop.is_set():
             line = self.readline()
-            self.data_in_queue.put(line)
+            chunk.extend(line)
+            chunk_cnt += 1
+            if(chunk_cnt >= self.line_chunk_size):
+                self.data_in_queue.put(chunk)
+                chunk = bytearray()
+                chunk_cnt = 0
 
     def commander(self):
         """ to run in thread - check out queue and send to serial """
